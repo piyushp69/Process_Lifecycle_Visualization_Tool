@@ -2,70 +2,72 @@ import tkinter as tk
 from tkinter import messagebox
 import random
 
-# Process model
+# process model
 class Process:
-    def __init__(self, pid, burst):
+    def __init__(self, pid, burst, arrival):
         self.pid = pid
         self.burst = burst
         self.remaining = burst
+        self.arrival = arrival
 
-# Main app
+# main app
 class ProcessVisualizer:
 
     def __init__(self, root):
         self.root = root
         self.root.title("Process Lifecycle Visualization Tool")
-        self.root.geometry("1200x750")
-        self.root.configure(bg="#111827") 
+        self.root.geometry("1250x750")
+        self.root.configure(bg="#111827")
 
-        # state data
         self.process_count = 0
         self.ready = []
         self.waiting = []
         self.terminated = []
+        self.all_processes = []
+        self.time = 0
         self.time_quantum = 2
-        
-        self.running_process = None 
+
+        self.running_process = None
         self.prev_process = None
         self.is_simulating = False
 
+        self.algorithm = tk.StringVar(value="RR")
+
         self.create_ui()
 
-    # UI setup
+    # UI
     def create_ui(self):
         header = tk.Frame(self.root, bg="#1F2937", pady=15)
         header.pack(fill="x")
 
         tk.Label(header, text="Process Lifecycle Visualization Tool",
-                 font=("Segoe UI", 24, "bold"),
-                 bg="#1F2937", fg="#F9FAFB").pack()
-
-        tk.Label(header,
-                 text=f"Round Robin | Time Quantum: {self.time_quantum}",
-                 font=("Segoe UI", 12),
-                 bg="#1F2937", fg="#9CA3AF").pack()
+                 font=("Segoe UI", 22, "bold"),
+                 bg="#1F2937", fg="white").pack()
 
         control = tk.Frame(self.root, bg="#111827")
         control.pack(pady=20)
 
-        tk.Label(control, text="Burst Time:",
-                 bg="#111827", fg="white").grid(row=0, column=0)
+        tk.Label(control, text="Burst", bg="#111827", fg="white").grid(row=0, column=0)
+        self.burst_entry = tk.Entry(control, width=8)
+        self.burst_entry.grid(row=0, column=1, padx=5)
 
-        self.entry = tk.Entry(control, width=10)
-        self.entry.grid(row=0, column=1, padx=10)
+        tk.Label(control, text="Arrival", bg="#111827", fg="white").grid(row=0, column=2)
+        self.arrival_entry = tk.Entry(control, width=8)
+        self.arrival_entry.grid(row=0, column=3, padx=5)
 
-        tk.Button(control, text="+ Add", command=self.create_process)\
-            .grid(row=0, column=2, padx=10)
-
-        tk.Button(control, text="▶ Start", command=self.start_simulation)\
-            .grid(row=0, column=3, padx=10)
-
-        tk.Button(control, text="↺ Reset", command=self.reset_simulation)\
+        tk.OptionMenu(control, self.algorithm, "FCFS", "SJF", "RR")\
             .grid(row=0, column=4, padx=10)
 
-        # context switch info
+        tk.Button(control, text="+ Add", command=self.create_process)\
+            .grid(row=0, column=5, padx=10)
+
+        tk.Button(control, text="▶ Start", command=self.start_simulation)\
+            .grid(row=0, column=6, padx=10)
+
+        tk.Button(control, text="↺ Reset", command=self.reset_simulation)\
+            .grid(row=0, column=7, padx=10)
+
         self.context_label = tk.Label(self.root, text="",
-                                     font=("Segoe UI", 12, "bold"),
                                      bg="#111827", fg="#F87171")
         self.context_label.pack()
 
@@ -81,9 +83,9 @@ class ProcessVisualizer:
                                   bg="#111827", fg="white")
         self.cpu_status.pack(pady=10)
 
-    # state box
+    # box
     def create_box(self, parent, title, color):
-        frame = tk.Frame(parent, bg="#1F2937", width=200, height=200)
+        frame = tk.Frame(parent, bg="#1F2937", width=220, height=220)
         frame.pack(side="left", padx=10)
         frame.pack_propagate(False)
 
@@ -95,20 +97,22 @@ class ProcessVisualizer:
     # add process
     def create_process(self):
         try:
-            burst = int(self.entry.get())
-            if burst <= 0:
+            burst = int(self.burst_entry.get())
+            arrival = int(self.arrival_entry.get())
+            if burst <= 0 or arrival < 0:
                 raise ValueError
         except:
-            messagebox.showerror("Error", "Invalid burst time")
+            messagebox.showerror("Error", "Invalid input")
             return
 
         self.process_count += 1
-        self.ready.append(Process(f"P{self.process_count}", burst))
+        p = Process(f"P{self.process_count}", burst, arrival)
+        self.all_processes.append(p)
 
-        self.entry.delete(0, tk.END)
-        self.update_ui()
+        self.burst_entry.delete(0, tk.END)
+        self.arrival_entry.delete(0, tk.END)
 
-    # refresh UI
+    # update UI
     def update_ui(self):
         self.clear(self.ready_frame)
         self.clear(self.running_frame)
@@ -131,7 +135,6 @@ class ProcessVisualizer:
             tk.Label(self.terminated_frame, text=p.pid,
                      bg="red", fg="white").pack()
 
-    # clear box
     def clear(self, frame):
         for w in frame.winfo_children()[1:]:
             w.destroy()
@@ -141,6 +144,9 @@ class ProcessVisualizer:
         self.ready.clear()
         self.waiting.clear()
         self.terminated.clear()
+        self.all_processes.clear()
+        self.time = 0
+
         self.running_process = None
         self.prev_process = None
         self.is_simulating = False
@@ -152,45 +158,71 @@ class ProcessVisualizer:
 
     # start
     def start_simulation(self):
-        if not self.ready:
+        if not self.all_processes:
             messagebox.showerror("Error", "No process")
             return
 
         self.is_simulating = True
         self.simulate()
 
-    # scheduling loop
+    # scheduler select
+    def pick_process(self):
+        if self.algorithm.get() == "FCFS":
+            return self.ready.pop(0)
+
+        if self.algorithm.get() == "SJF":
+            self.ready.sort(key=lambda x: x.remaining)
+            return self.ready.pop(0)
+
+        return self.ready.pop(0)  # RR
+
+    # main loop
     def simulate(self):
         if not self.is_simulating:
             return
+
+        # arrival handling
+        for p in self.all_processes[:]:
+            if p.arrival == self.time:
+                self.ready.append(p)
+                self.all_processes.remove(p)
 
         if self.waiting and random.random() < 0.5:
             self.ready.append(self.waiting.pop(0))
 
         if not self.ready:
-            self.running_process = None
-            self.update_ui()
+            self.cpu_status.config(text=f"Idle (Time {self.time})")
+            self.time += 1
+            self.root.after(800, self.simulate)
             return
 
-        self.running_process = self.ready.pop(0)
+        self.running_process = self.pick_process()
 
         if self.prev_process:
             self.context_label.config(
-                text=f"Context Switch: {self.prev_process.pid} → {self.running_process.pid}"
+                text=f"{self.prev_process.pid} → {self.running_process.pid}"
             )
 
         self.prev_process = self.running_process
 
-        self.cpu_status.config(text=f"Running: {self.running_process.pid}")
-        self.update_ui()
+        self.cpu_status.config(
+            text=f"{self.running_process.pid} (Time {self.time})"
+        )
 
+        self.update_ui()
         self.root.after(1000, self.execute)
 
-    # execution step
+    # execution
     def execute(self):
         p = self.running_process
-        exec_time = min(self.time_quantum, p.remaining)
+
+        if self.algorithm.get() == "RR":
+            exec_time = min(self.time_quantum, p.remaining)
+        else:
+            exec_time = 1
+
         p.remaining -= exec_time
+        self.time += exec_time
 
         if p.remaining > 0 and random.random() < 0.3:
             self.waiting.append(p)
@@ -202,10 +234,10 @@ class ProcessVisualizer:
         self.running_process = None
         self.update_ui()
 
-        self.root.after(800, self.simulate)
+        self.root.after(700, self.simulate)
 
 
-# run app
+# run
 if __name__ == "__main__":
     root = tk.Tk()
     app = ProcessVisualizer(root)
