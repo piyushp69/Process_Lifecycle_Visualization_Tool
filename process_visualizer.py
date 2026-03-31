@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
+import random
 
 # Process model
 class Process:
@@ -14,134 +15,91 @@ class ProcessVisualizer:
     def __init__(self, root):
         self.root = root
         self.root.title("Process Lifecycle Visualization Tool")
-        self.root.geometry("1100x700")
-        self.root.configure(bg="#111827")
+        self.root.geometry("1200x750")
+        self.root.configure(bg="#111827") 
 
+        # state data
         self.process_count = 0
         self.ready = []
+        self.waiting = []
         self.terminated = []
-        self.gantt = []
         self.time_quantum = 2
-
-        self.running_process = None
+        
+        self.running_process = None 
+        self.prev_process = None
         self.is_simulating = False
 
         self.create_ui()
 
     # UI setup
     def create_ui(self):
-        header_frame = tk.Frame(self.root, bg="#1F2937", pady=15)
-        header_frame.pack(fill="x", side="top")
+        header = tk.Frame(self.root, bg="#1F2937", pady=15)
+        header.pack(fill="x")
 
-        tk.Label(header_frame,
-                 text="Process Lifecycle Visualization Tool",
+        tk.Label(header, text="Process Lifecycle Visualization Tool",
                  font=("Segoe UI", 24, "bold"),
-                 bg="#1F2937",
-                 fg="#F9FAFB").pack()
+                 bg="#1F2937", fg="#F9FAFB").pack()
 
-        tk.Label(header_frame,
-                 text=f"Round Robin Scheduling | Time Quantum: {self.time_quantum}",
+        tk.Label(header,
+                 text=f"Round Robin | Time Quantum: {self.time_quantum}",
                  font=("Segoe UI", 12),
-                 bg="#1F2937",
-                 fg="#9CA3AF").pack()
+                 bg="#1F2937", fg="#9CA3AF").pack()
 
-        control_frame = tk.Frame(self.root, bg="#111827")
-        control_frame.pack(pady=25)
+        control = tk.Frame(self.root, bg="#111827")
+        control.pack(pady=20)
 
-        tk.Label(control_frame,
-                 text="Burst Time:",
-                 font=("Segoe UI", 12, "bold"),
-                 bg="#111827",
-                 fg="#E5E7EB").grid(row=0, column=0, padx=(0, 10))
+        tk.Label(control, text="Burst Time:",
+                 bg="#111827", fg="white").grid(row=0, column=0)
 
-        self.entry = tk.Entry(control_frame,
-                              font=("Segoe UI", 14),
-                              width=8,
-                              justify="center",
-                              bg="#374151",
-                              fg="white",
-                              insertbackground="white",
-                              relief="flat")
-        self.entry.grid(row=0, column=1, padx=10, ipady=5)
+        self.entry = tk.Entry(control, width=10)
+        self.entry.grid(row=0, column=1, padx=10)
 
-        self.create_btn = tk.Button(control_frame,
-                               text="+ Add Process",
-                               font=("Segoe UI", 11, "bold"),
-                               bg="#10B981",
-                               fg="white",
-                               relief="flat",
-                               width=15,
-                               command=self.create_process)
-        self.create_btn.grid(row=0, column=2, padx=10, ipady=3)
+        tk.Button(control, text="+ Add", command=self.create_process)\
+            .grid(row=0, column=2, padx=10)
 
-        self.start_btn = tk.Button(control_frame,
-                              text="▶ Start Simulation",
-                              font=("Segoe UI", 11, "bold"),
-                              bg="#3B82F6",
-                              fg="white",
-                              relief="flat",
-                              width=15,
-                              command=self.start_simulation)
-        self.start_btn.grid(row=0, column=3, padx=10, ipady=3)
+        tk.Button(control, text="▶ Start", command=self.start_simulation)\
+            .grid(row=0, column=3, padx=10)
 
-        self.reset_btn = tk.Button(control_frame,
-                              text="↺ Reset",
-                              font=("Segoe UI", 11, "bold"),
-                              bg="#6B7280",
-                              fg="white",
-                              relief="flat",
-                              width=10,
-                              command=self.reset_simulation)
-        self.reset_btn.grid(row=0, column=4, padx=10, ipady=3)
+        tk.Button(control, text="↺ Reset", command=self.reset_simulation)\
+            .grid(row=0, column=4, padx=10)
 
-        state_container = tk.Frame(self.root, bg="#111827")
-        state_container.pack(pady=10)
+        # context switch info
+        self.context_label = tk.Label(self.root, text="",
+                                     font=("Segoe UI", 12, "bold"),
+                                     bg="#111827", fg="#F87171")
+        self.context_label.pack()
 
-        self.ready_frame = self.create_state_box(state_container, "Ready Queue", "#3B82F6")
-        self.running_frame = self.create_state_box(state_container, "Running", "#F59E0B")
-        self.terminated_frame = self.create_state_box(state_container, "Terminated", "#EF4444")
+        container = tk.Frame(self.root, bg="#111827")
+        container.pack()
 
-        self.cpu_status = tk.Label(self.root,
-                                   text="CPU Status: Idle",
-                                   font=("Segoe UI", 14, "bold"),
-                                   bg="#111827",
-                                   fg="#9CA3AF")
-        self.cpu_status.pack(pady=(20, 5))
+        self.ready_frame = self.create_box(container, "Ready", "#3B82F6")
+        self.running_frame = self.create_box(container, "Running", "#F59E0B")
+        self.waiting_frame = self.create_box(container, "Waiting", "#8B5CF6")
+        self.terminated_frame = self.create_box(container, "Terminated", "#EF4444")
 
-        gantt_container = tk.Frame(self.root, bg="#1F2937")
-        gantt_container.pack(pady=10, fill="x", padx=50)
+        self.cpu_status = tk.Label(self.root, text="CPU Idle",
+                                  bg="#111827", fg="white")
+        self.cpu_status.pack(pady=10)
 
-        tk.Label(gantt_container,
-                 text="Gantt Chart Flow",
-                 font=("Segoe UI", 14, "bold"),
-                 bg="#1F2937",
-                 fg="#E5E7EB").pack(pady=(10, 5))
-
-        self.gantt_frame = tk.Frame(gantt_container, bg="#1F2937")
-        self.gantt_frame.pack(pady=(0, 15))
-
-    # Create state box
-    def create_state_box(self, parent, title, color):
-        frame = tk.Frame(parent, bg="#1F2937", bd=2, relief="groove", width=280, height=250)
-        frame.pack(side="left", padx=15)
+    # state box
+    def create_box(self, parent, title, color):
+        frame = tk.Frame(parent, bg="#1F2937", width=200, height=200)
+        frame.pack(side="left", padx=10)
         frame.pack_propagate(False)
 
-        tk.Label(frame,
-                 text=title,
-                 font=("Segoe UI", 14, "bold"),
-                 bg="#1F2937",
-                 fg=color).pack(pady=10)
-
+        tk.Label(frame, text=title,
+                 bg="#1F2937", fg=color,
+                 font=("Segoe UI", 12, "bold")).pack()
         return frame
 
-    # Add process
+    # add process
     def create_process(self):
         try:
             burst = int(self.entry.get())
             if burst <= 0:
                 raise ValueError
-        except ValueError:
-            messagebox.showerror("Invalid Input", "Enter valid burst time")
+        except:
+            messagebox.showerror("Error", "Invalid burst time")
             return
 
         self.process_count += 1
@@ -150,109 +108,93 @@ class ProcessVisualizer:
         self.entry.delete(0, tk.END)
         self.update_ui()
 
-    # Update UI
+    # refresh UI
     def update_ui(self):
-        self.clear_box(self.ready_frame)
-        self.clear_box(self.running_frame)
-        self.clear_box(self.terminated_frame)
-
-        for widget in self.gantt_frame.winfo_children():
-            widget.destroy()
+        self.clear(self.ready_frame)
+        self.clear(self.running_frame)
+        self.clear(self.waiting_frame)
+        self.clear(self.terminated_frame)
 
         for p in self.ready:
-            tk.Label(self.ready_frame,
-                     text=f"{p.pid} ({p.remaining})",
-                     bg="#2563EB",
-                     fg="white").pack(pady=4)
+            tk.Label(self.ready_frame, text=p.pid,
+                     bg="blue", fg="white").pack()
 
         if self.running_process:
-            tk.Label(self.running_frame,
-                     text=f"{self.running_process.pid} ({self.running_process.remaining})",
-                     bg="#F59E0B").pack(pady=40)
+            tk.Label(self.running_frame, text=self.running_process.pid,
+                     bg="orange").pack()
+
+        for p in self.waiting:
+            tk.Label(self.waiting_frame, text=p.pid,
+                     bg="purple", fg="white").pack()
 
         for p in self.terminated:
-            tk.Label(self.terminated_frame,
-                     text=p.pid,
-                     bg="#DC2626",
-                     fg="white").pack(pady=4)
+            tk.Label(self.terminated_frame, text=p.pid,
+                     bg="red", fg="white").pack()
 
-        for i, pid in enumerate(self.gantt):
-            if i > 0:
-                tk.Label(self.gantt_frame, text="➔", bg="#1F2937").pack(side="left", padx=5)
+    # clear box
+    def clear(self, frame):
+        for w in frame.winfo_children()[1:]:
+            w.destroy()
 
-            tk.Label(self.gantt_frame,
-                     text=pid,
-                     bg="#8B5CF6",
-                     fg="white",
-                     width=5).pack(side="left", padx=2)
-
-    # Clear UI box
-    def clear_box(self, frame):
-        for widget in frame.winfo_children()[1:]:
-            widget.destroy()
-
-    # Reset simulation
+    # reset
     def reset_simulation(self):
-        self.is_simulating = False
-        self.process_count = 0
         self.ready.clear()
+        self.waiting.clear()
         self.terminated.clear()
-        self.gantt.clear()
         self.running_process = None
+        self.prev_process = None
+        self.is_simulating = False
 
-        self.cpu_status.config(text="CPU Status: Idle")
-        self.entry.delete(0, tk.END)
-
-        self.create_btn.config(state="normal")
-        self.start_btn.config(state="normal")
+        self.context_label.config(text="")
+        self.cpu_status.config(text="CPU Idle")
 
         self.update_ui()
 
-    # Start simulation
+    # start
     def start_simulation(self):
         if not self.ready:
-            messagebox.showerror("Error", "No processes")
+            messagebox.showerror("Error", "No process")
             return
 
         self.is_simulating = True
-        self.create_btn.config(state="disabled")
-        self.start_btn.config(state="disabled")
+        self.simulate()
 
-        self.simulate_step()
-
-    # Execute one step
-    def simulate_step(self):
+    # scheduling loop
+    def simulate(self):
         if not self.is_simulating:
             return
+
+        if self.waiting and random.random() < 0.5:
+            self.ready.append(self.waiting.pop(0))
 
         if not self.ready:
             self.running_process = None
-            self.cpu_status.config(text="CPU Status: Idle")
             self.update_ui()
-            self.is_simulating = False
-            self.create_btn.config(state="normal")
-            self.start_btn.config(state="normal")
-            messagebox.showinfo("Done", "All processes finished")
             return
 
         self.running_process = self.ready.pop(0)
+
+        if self.prev_process:
+            self.context_label.config(
+                text=f"Context Switch: {self.prev_process.pid} → {self.running_process.pid}"
+            )
+
+        self.prev_process = self.running_process
+
         self.cpu_status.config(text=f"Running: {self.running_process.pid}")
         self.update_ui()
 
-        self.root.after(1000, self.finish_step)
+        self.root.after(1000, self.execute)
 
-    # Finish execution step
-    def finish_step(self):
-        if not self.is_simulating:
-            return
-
+    # execution step
+    def execute(self):
         p = self.running_process
         exec_time = min(self.time_quantum, p.remaining)
-
-        self.gantt.append(p.pid)
         p.remaining -= exec_time
 
-        if p.remaining > 0:
+        if p.remaining > 0 and random.random() < 0.3:
+            self.waiting.append(p)
+        elif p.remaining > 0:
             self.ready.append(p)
         else:
             self.terminated.append(p)
@@ -260,9 +202,10 @@ class ProcessVisualizer:
         self.running_process = None
         self.update_ui()
 
-        self.root.after(500, self.simulate_step)
+        self.root.after(800, self.simulate)
 
-# Run app
+
+# run app
 if __name__ == "__main__":
     root = tk.Tk()
     app = ProcessVisualizer(root)
