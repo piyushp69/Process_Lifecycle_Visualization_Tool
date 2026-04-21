@@ -1,0 +1,82 @@
+/* --- 1. RESET & BASE (Purana UI) --- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+    padding: 20px;
+}
+
+.container { max-width: 1400px; margin: 0 auto; }
+
+/* Header */
+.header-content {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+/* Cards */
+.card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+    overflow: hidden;
+}
+
+.card-header {
+    background: #f8f9fa;
+    padding: 15px 25px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-body { padding: 25px; }
+
+/* Forms & Buttons */
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; align-items: end; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group input { padding: 10px; border: 2px solid #e9ecef; border-radius: 8px; }
+
+.btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.btn-primary { background: #667eea; color: white; }
+.btn-success { background: #28a745; color: white; width: 100%; justify-content: center; margin-top: 20px; }
+
+/* Algorithm Selection */
+.algorithm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+.algorithm-card { 
+    background: #f8f9fa; padding: 20px; border-radius: 12px; text-align: center; cursor: pointer; border: 3px solid transparent; transition: 0.3s;
+}
+.algorithm-card.selected { border-color: #667eea; background: #eef2ff; transform: translateY(-5px); }
+
+/* --- 2. LIFECYCLE & VISUALS (Naya UI) --- */
+.lifecycle-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; background: #f1f5f9; padding: 20px; border-radius: 12px; }
+.state-box { background: white; border-radius: 10px; padding: 15px; min-height: 200px; border-top: 5px solid #64748b; }
+#box-ready { border-color: #3b82f6; }
+#box-running { border-color: #f59e0b; }
+#box-waiting { border-color: #8b5cf6; }
+#box-terminated { border-color: #ef4444; }
+
+.process-card-mini {
+    background: #667eea; color: white; padding: 10px; border-radius: 6px; margin-bottom: 8px; text-align: center; font-weight: bold;
+    animation: popIn 0.3s ease;
+}
+
+@keyframes popIn { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
+
+.status-badge { background: #1e293b; color: #38bdf8; padding: 5px 15px; border-radius: 20px; font-weight: bold; }
+
+.gantt-chart { display: flex; height: 60px; border-radius: 8px; overflow: hidden; background: #eee; margin-top: 10px; }
+.gantt-block { display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-size: 0.7rem; border-right: 1px solid rgba(255,255,255,0.2); }
+.gantt-block.idle { background: #6c757d; }
+.gantt-block.process-color-1 { background: #667eea; }
+
+/* Responsive */
+@media (max-width: 768px) { .lifecycle-container { grid-template-columns: 1fr 1fr; } }
